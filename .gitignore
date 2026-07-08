@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+*.mp4
+*TEMP_MPY*
+my_clips/

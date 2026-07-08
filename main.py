@@ -25,6 +25,76 @@ import video_assembler
 import srt_writer
 
 
+def run_pipeline(
+    topic: str | None = None,
+    script_path: str | None = None,
+    language: str = "hi",
+    gender: str = "female",
+    voice: str | None = None,
+    rate: str = "+0%",
+    num_sentences: int = 8,
+    clips_dir: str | None = None,
+    out_dir: str = "./output",
+    font_path: str | None = None,
+    progress_callback = None
+):
+    if not topic and not script_path:
+        raise ValueError("Provide either topic or script_path.")
+
+    os.makedirs(out_dir, exist_ok=True)
+    audio_dir = os.path.join(out_dir, "audio")
+    footage_cache = os.path.join(out_dir, "footage_cache")
+
+    # 1. Script
+    if progress_callback:
+        progress_callback("Writing script...", 10)
+    if script_path:
+        data = script_writer.load_manual_script(script_path, language=language)
+    else:
+        print("Writing script...")
+        data = script_writer.generate_script(
+            topic, language=language, num_sentences=num_sentences
+        )
+    sentences = data["sentences"]
+    print(f"Script: '{data['title']}' -- {len(sentences)} lines")
+
+    # 2. Voice (per-sentence, so each has an exact known duration)
+    if progress_callback:
+        progress_callback("Synthesizing voice audio...", 30)
+    voice_name = voice_generator.resolve_voice(language, gender, voice)
+    print(f"Synthesizing voice with {voice_name}...")
+    sentences = voice_generator.generate_sentence_audio(sentences, voice_name, audio_dir, rate)
+
+    # 3. Footage (local first, Pexels fallback), sized per-sentence later
+    if progress_callback:
+        progress_callback("Finding visual footage...", 50)
+    pexels_key = os.environ.get("PEXELS_API_KEY")
+    print("Finding footage for each line...")
+    for s in sentences:
+        s["clip_path"] = footage_finder.find_clip_for_sentence(
+            s["keywords"], clips_dir, footage_cache, pexels_key
+        )
+
+    # 4. Assemble -- sync guaranteed because each segment's picture length
+    #    is derived from that same segment's own audio duration
+    if progress_callback:
+        progress_callback("Assembling final video (rendering frames)...", 70)
+    out_video = os.path.join(out_dir, "final_video.mp4")
+    print("Assembling final video (this can take a few minutes)...")
+    video_assembler.build_video(sentences, out_video, font_path=font_path)
+
+    # 5. Also write a standalone .srt
+    if progress_callback:
+        progress_callback("Generating subtitle files...", 90)
+    out_srt = os.path.join(out_dir, "final_video.srt")
+    srt_writer.write_srt(sentences, out_srt)
+
+    if progress_callback:
+        progress_callback("Video successfully generated!", 100)
+    print(f"\nDone.\n  Video: {out_video}\n  Subtitles: {out_srt}")
+    return out_video, out_srt
+
+
 def main():
     load_dotenv()
 
@@ -41,49 +111,18 @@ def main():
     p.add_argument("--font", default=None, help="Path to a .ttf font for subtitles (needed for non-Latin scripts!)")
     args = p.parse_args()
 
-    if not args.topic and not args.script:
-        sys.exit("Provide either --topic (LLM writes it) or --script (your own text file).")
-
-    os.makedirs(args.out, exist_ok=True)
-    audio_dir = os.path.join(args.out, "audio")
-    footage_cache = os.path.join(args.out, "footage_cache")
-
-    # 1. Script
-    if args.script:
-        data = script_writer.load_manual_script(args.script, language=args.language)
-    else:
-        print("Writing script...")
-        data = script_writer.generate_script(
-            args.topic, language=args.language, num_sentences=args.num_sentences
-        )
-    sentences = data["sentences"]
-    print(f"Script: '{data['title']}' -- {len(sentences)} lines")
-
-    # 2. Voice (per-sentence, so each has an exact known duration)
-    voice = voice_generator.resolve_voice(args.language, args.gender, args.voice)
-    print(f"Synthesizing voice with {voice}...")
-    sentences = voice_generator.generate_sentence_audio(sentences, voice, audio_dir, args.rate)
-
-    # 3. Footage (local first, Pexels fallback), sized per-sentence later
-    pexels_key = os.environ.get("PEXELS_API_KEY")
-    print("Finding footage for each line...")
-    for s in sentences:
-        s["clip_path"] = footage_finder.find_clip_for_sentence(
-            s["keywords"], args.clips_dir, footage_cache, pexels_key
-        )
-
-    # 4. Assemble -- sync guaranteed because each segment's picture length
-    #    is derived from that same segment's own audio duration
-    out_video = os.path.join(args.out, "final_video.mp4")
-    print("Assembling final video (this can take a few minutes)...")
-    video_assembler.build_video(sentences, out_video, font_path=args.font)
-
-    # 5. Also write a standalone .srt, useful for platforms that want
-    #    a separate subtitle upload alongside burned-in captions
-    out_srt = os.path.join(args.out, "final_video.srt")
-    srt_writer.write_srt(sentences, out_srt)
-
-    print(f"\nDone.\n  Video: {out_video}\n  Subtitles: {out_srt}")
+    run_pipeline(
+        topic=args.topic,
+        script_path=args.script,
+        language=args.language,
+        gender=args.gender,
+        voice=args.voice,
+        rate=args.rate,
+        num_sentences=args.num_sentences,
+        clips_dir=args.clips_dir,
+        out_dir=args.out,
+        font_path=args.font
+    )
 
 
 if __name__ == "__main__":

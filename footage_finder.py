@@ -72,6 +72,14 @@ def find_clip_for_sentence(keywords: list[str], clips_dir: str | None,
         if remote:
             return remote
 
+    # Fallback: use any clip in clips_dir if available
+    if clips_dir and os.path.isdir(clips_dir):
+        files = [f for f in os.listdir(clips_dir) if f.lower().endswith((".mp4", ".mov", ".mkv"))]
+        if files:
+            fallback = os.path.join(clips_dir, files[0])
+            print(f"Warning: No keyword match for {keywords}. Using fallback clip: {fallback}")
+            return fallback
+
     raise FileNotFoundError(
         f"No local clip matched keywords {keywords} in '{clips_dir}', "
         f"and Pexels had nothing (or no API key was set). "

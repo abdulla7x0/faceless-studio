@@ -74,7 +74,7 @@ def _subtitle_clip(text: str, duration: float, font_path: str | None) -> TextCli
 
 
 def build_video(sentences_with_clips: list[dict], out_path: str,
-                 font_path: str | None = None, fps: int = 30):
+                 font_path: str | None = None, fps: int = 24):
     """
     sentences_with_clips: list of dicts, each needs:
         "text"        - narration line (used for burned-in subtitle)
@@ -84,19 +84,21 @@ def build_video(sentences_with_clips: list[dict], out_path: str,
     """
     segments = []
     for s in sentences_with_clips:
-        video_part = _clip_to_duration(s["clip_path"], s["duration"])
-        audio_part = AudioFileClip(s["audio_path"]).with_duration(s["duration"])
+        audio_part = AudioFileClip(s["audio_path"])
+        duration = audio_part.duration
+
+        video_part = _clip_to_duration(s["clip_path"], duration)
         video_part = video_part.with_audio(audio_part)
 
-        subtitle = _subtitle_clip(s["text"], s["duration"], font_path)
+        subtitle = _subtitle_clip(s["text"], duration, font_path)
         segment = CompositeVideoClip([video_part, subtitle], size=(TARGET_W, TARGET_H))
-        segment = segment.with_duration(s["duration"])
+        segment = segment.with_duration(duration)
         segments.append(segment)
 
     final = concatenate_videoclips(segments, method="compose")
     final.write_videofile(
         out_path, fps=fps, codec="libx264", audio_codec="aac",
-        threads=4, preset="medium",
+        threads=4, preset="ultrafast",
     )
 
     for seg in segments:
