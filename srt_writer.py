@@ -13,7 +13,13 @@ def _format_timestamp(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
+import os
+
 def write_srt(sentences_with_durations: list[dict], out_path: str):
+    parent_dir = os.path.dirname(out_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
     lines = []
     t = 0.0
     for i, s in enumerate(sentences_with_durations, start=1):
