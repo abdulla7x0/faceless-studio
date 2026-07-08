@@ -1,5 +1,5 @@
 """
-Faceless Video Studio -- end to end: topic -> synced vertical video.
+Dot Studio -- end to end: topic -> synced vertical video.
 
 Usage:
     python main.py --topic "5 gold trading mistakes beginners make" \\
@@ -98,7 +98,7 @@ def run_pipeline(
 def main():
     load_dotenv()
 
-    p = argparse.ArgumentParser(description="Generate a synced faceless video from a topic or script.")
+    p = argparse.ArgumentParser(description="Generate a synced video from a topic or script using Dot Studio.")
     p.add_argument("--topic", help="Topic for the LLM to write a script about")
     p.add_argument("--script", help="Path to a .txt file with your own script (one line per sentence)")
     p.add_argument("--language", default="hi", help="hi, ta, te, mr, bn, en (default: hi)")

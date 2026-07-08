@@ -1,4 +1,4 @@
-# Faceless Video Studio
+# Dot Studio
 
 Topic in → synced vertical video out. No camera, no recording your own voice.
 

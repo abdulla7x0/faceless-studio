@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 import main
 
-app = FastAPI(title="Faceless Video Studio API")
+app = FastAPI(title="Dot Studio API")
 
 # Setup directories
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
