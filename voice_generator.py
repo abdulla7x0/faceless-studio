@@ -35,8 +35,20 @@ def resolve_voice(language: str, gender: str = "female", voice_override: str | N
 
 
 async def _synthesize(text: str, voice: str, out_path: str, rate: str = "+0%"):
-    communicate = edge_tts.Communicate(text, voice, rate=rate)
-    await communicate.save(out_path)
+    retries = 3
+    for attempt in range(retries):
+        try:
+            communicate = edge_tts.Communicate(text, voice, rate=rate)
+            await communicate.save(out_path)
+            return  # Success!
+        except Exception as e:
+            if attempt == retries - 1:
+                print(f"[TTS ERROR] Failed to synthesize text after {retries} attempts: '{text}' with voice '{voice}' and rate '{rate}'. Error: {e}")
+                raise
+            else:
+                backoff = 2 ** attempt
+                print(f"[TTS WARNING] Attempt {attempt + 1} failed for text '{text}'. Retrying in {backoff}s... Error: {e}")
+                await asyncio.sleep(backoff)
 
 
 def get_mp3_duration(path: str) -> float:
